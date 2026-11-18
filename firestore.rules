@@ -1,0 +1,390 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // =========================================================================
+    // Primitive Helpers
+    // =========================================================================
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidInviteCodeId(code) {
+      return code is string && code.size() >= 4 && code.size() <= 32 && code.matches('^[A-Z0-9_\\-]+$');
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Email-claim bootstrap strictly requires verified email to prevent spoofing
+    function isBootstrappedOwnerEmail() {
+      return isVerified() && request.auth.token.email == 'lombardofilippo999@gmail.com';
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        isBootstrappedOwnerEmail() ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isMember() {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isEditor() {
+      return isMember() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'editor';
+    }
+
+    function canEditContent() {
+      return isAdmin() || isEditor();
+    }
+
+    // =========================================================================
+    // Validation Blueprints
+    // =========================================================================
+    function isValidBandMember(data, userId) {
+      return data.keys().hasAll([
+          'uid', 'bandId', 'displayName', 'instrument',
+          'role', 'inviteCodeUsed', 'joinedAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'uid', 'bandId', 'displayName', 'instrument',
+          'role', 'inviteCodeUsed', 'joinedAt', 'updatedAt'
+        ]) &&
+        data.uid == userId &&
+        isValidId(data.uid) &&
+        data.bandId == 'main-band' &&
+        data.displayName is string && data.displayName.size() >= 2 && data.displayName.size() <= 80 &&
+        data.instrument is string && data.instrument.size() <= 60 &&
+        data.role in ['admin', 'editor', 'viewer'] &&
+        data.inviteCodeUsed is string && data.inviteCodeUsed.size() <= 32 &&
+        data.inviteCodeUsed.matches('^[A-Z0-9_\\-]*$') &&
+        data.joinedAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidPrivateInfo(data, userId) {
+      return data.keys().hasAll(['uid', 'email', 'updatedAt']) &&
+        data.keys().hasOnly(['uid', 'email', 'updatedAt']) &&
+        data.uid == userId &&
+        isValidId(data.uid) &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 160 &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidAdminMarker(data, userId) {
+      return data.keys().hasAll(['uid', 'grantedAt', 'grantedBy']) &&
+        data.keys().hasOnly(['uid', 'grantedAt', 'grantedBy']) &&
+        data.uid == userId &&
+        isValidId(data.uid) &&
+        data.grantedAt is timestamp &&
+        data.grantedBy is string && data.grantedBy.size() >= 1 && data.grantedBy.size() <= 128;
+    }
+
+    function isValidInviteCode(data, code) {
+      return data.keys().hasAll([
+          'code', 'bandId', 'role', 'label', 'maxUses',
+          'usedCount', 'active', 'createdBy', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'code', 'bandId', 'role', 'label', 'maxUses',
+          'usedCount', 'active', 'createdBy', 'createdAt', 'updatedAt'
+        ]) &&
+        data.code == code &&
+        isValidInviteCodeId(data.code) &&
+        data.bandId == 'main-band' &&
+        data.role in ['admin', 'editor', 'viewer'] &&
+        data.label is string && data.label.size() >= 1 && data.label.size() <= 80 &&
+        data.maxUses is int && data.maxUses >= 1 && data.maxUses <= 100 &&
+        data.usedCount is int && data.usedCount >= 0 && data.usedCount <= data.maxUses &&
+        data.active is bool &&
+        data.createdBy is string && isValidId(data.createdBy) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidBandSong(data, songId) {
+      return data.keys().hasAll([
+          'id', 'bandId', 'title', 'artist', 'musicalKey', 'bpm', 'duration',
+          'genre', 'notes', 'fileName', 'fileSizeBytes', 'chunkCount', 'pageCount',
+          'uploadedByUid', 'uploadedByName', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'bandId', 'title', 'artist', 'musicalKey', 'bpm', 'duration',
+          'genre', 'notes', 'fileName', 'fileSizeBytes', 'chunkCount', 'pageCount',
+          'uploadedByUid', 'uploadedByName', 'createdAt', 'updatedAt'
+        ]) &&
+        data.id == songId &&
+        isValidId(data.id) &&
+        data.bandId == 'main-band' &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 120 &&
+        data.artist is string && data.artist.size() <= 100 &&
+        data.musicalKey is string && data.musicalKey.size() <= 24 &&
+        data.bpm is int && data.bpm >= 0 && data.bpm <= 400 &&
+        data.duration is string && data.duration.size() <= 16 &&
+        data.genre is string && data.genre.size() <= 40 &&
+        data.notes is string && data.notes.size() <= 1000 &&
+        data.fileName is string && data.fileName.size() >= 1 && data.fileName.size() <= 160 &&
+        data.fileSizeBytes is int && data.fileSizeBytes >= 1 && data.fileSizeBytes <= 15728640 &&
+        data.chunkCount is int && data.chunkCount >= 1 && data.chunkCount <= 40 &&
+        data.pageCount is int && data.pageCount >= 1 && data.pageCount <= 200 &&
+        data.uploadedByUid is string && isValidId(data.uploadedByUid) &&
+        data.uploadedByName is string && data.uploadedByName.size() >= 1 && data.uploadedByName.size() <= 80 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidPdfChunk(data, songId) {
+      return data.keys().hasAll(['songId', 'bandId', 'index', 'dataBase64']) &&
+        data.keys().hasOnly(['songId', 'bandId', 'index', 'dataBase64']) &&
+        data.songId == songId &&
+        isValidId(data.songId) &&
+        data.bandId == 'main-band' &&
+        data.index is int && data.index >= 0 && data.index < 40 &&
+        data.dataBase64 is string && data.dataBase64.size() >= 1 && data.dataBase64.size() <= 700000;
+    }
+
+    function isValidSetlist(data, setlistId) {
+      return data.keys().hasAll([
+          'id', 'bandId', 'eventTitle', 'eventDate', 'venue', 'notes',
+          'songIds', 'createdByUid', 'createdByName', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'bandId', 'eventTitle', 'eventDate', 'venue', 'notes',
+          'songIds', 'createdByUid', 'createdByName', 'createdAt', 'updatedAt'
+        ]) &&
+        data.id == setlistId &&
+        isValidId(data.id) &&
+        data.bandId == 'main-band' &&
+        data.eventTitle is string && data.eventTitle.size() >= 1 && data.eventTitle.size() <= 120 &&
+        data.eventDate is string && data.eventDate.size() >= 4 && data.eventDate.size() <= 32 &&
+        data.venue is string && data.venue.size() <= 120 &&
+        data.notes is string && data.notes.size() <= 1000 &&
+        data.songIds is list && data.songIds.size() <= 100 &&
+        (data.songIds.size() == 0 || data.songIds[0] is string) &&
+        data.createdByUid is string && isValidId(data.createdByUid) &&
+        data.createdByName is string && data.createdByName.size() >= 1 && data.createdByName.size() <= 80 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function hasValidInviteForRole(code, targetRole) {
+      let inviteBefore = get(/databases/$(database)/documents/invites/$(code)).data;
+      let inviteAfter = getAfter(/databases/$(database)/documents/invites/$(code)).data;
+      return isValidInviteCodeId(code) &&
+        exists(/databases/$(database)/documents/invites/$(code)) &&
+        inviteBefore.active == true &&
+        inviteBefore.usedCount < inviteBefore.maxUses &&
+        inviteBefore.role == targetRole &&
+        inviteAfter.usedCount == inviteBefore.usedCount + 1;
+    }
+
+    // =========================================================================
+    // Collection Rules
+    // =========================================================================
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && (isOwner(userId) || isMember() || isAdmin());
+      allow list: if isSignedIn() && resource.data.bandId == 'main-band';
+
+      // Invite code is strictly mandatory for every registration except verified bootstrapped owner
+      allow create: if isOwner(userId) &&
+        isValidId(userId) &&
+        isValidBandMember(incoming(), userId) &&
+        incoming().joinedAt == request.time &&
+        incoming().updatedAt == request.time && (
+          (incoming().role == 'admin' && isBootstrappedOwnerEmail() && incoming().inviteCodeUsed == 'OWNER_BOOTSTRAP') ||
+          hasValidInviteForRole(incoming().inviteCodeUsed, incoming().role)
+        );
+
+      allow update: if isSignedIn() &&
+        isValidId(userId) &&
+        isValidBandMember(incoming(), userId) &&
+        incoming().uid == existing().uid &&
+        incoming().bandId == existing().bandId &&
+        incoming().inviteCodeUsed == existing().inviteCodeUsed &&
+        incoming().joinedAt == existing().joinedAt &&
+        incoming().updatedAt == request.time && (
+          (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['role', 'displayName', 'instrument', 'updatedAt'])) ||
+          (isOwner(userId) && incoming().role == existing().role &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'instrument', 'updatedAt']))
+        );
+
+      allow delete: if isSignedIn() && isValidId(userId) && (isAdmin() || isOwner(userId));
+
+      match /private/{docId} {
+        allow get: if isSignedIn() && isValidId(userId) && docId == 'info' && (isOwner(userId) || isAdmin());
+        allow list: if false;
+
+        allow create: if isOwner(userId) &&
+          isValidId(userId) &&
+          docId == 'info' &&
+          isValidPrivateInfo(incoming(), userId) &&
+          incoming().updatedAt == request.time;
+
+        allow update: if isOwner(userId) &&
+          isValidId(userId) &&
+          docId == 'info' &&
+          isValidPrivateInfo(incoming(), userId) &&
+          incoming().uid == existing().uid &&
+          incoming().updatedAt == request.time &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['email', 'updatedAt']);
+
+        allow delete: if isSignedIn() && isValidId(userId) && docId == 'info' && (isOwner(userId) || isAdmin());
+      }
+    }
+
+    match /admins/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if false;
+
+      allow create: if isSignedIn() &&
+        isValidId(userId) &&
+        isValidAdminMarker(incoming(), userId) &&
+        incoming().grantedAt == request.time && (
+          (isOwner(userId) && isBootstrappedOwnerEmail() && incoming().grantedBy == userId) ||
+          (isOwner(userId) && existsAfter(/databases/$(database)/documents/users/$(userId)) &&
+            getAfter(/databases/$(database)/documents/users/$(userId)).data.role == 'admin' &&
+            hasValidInviteForRole(getAfter(/databases/$(database)/documents/users/$(userId)).data.inviteCodeUsed, 'admin')) ||
+          isAdmin()
+        );
+
+      allow update: if false;
+      allow delete: if isSignedIn() && isValidId(userId) && (isAdmin() || isOwner(userId));
+    }
+
+    match /invites/{code} {
+      allow get: if isSignedIn() && isValidInviteCodeId(code);
+      allow list: if isSignedIn() && (isBootstrappedOwnerEmail() || resource.data.createdBy == request.auth.uid);
+
+      allow create: if isAdmin() &&
+        isValidInviteCodeId(code) &&
+        isValidInviteCode(incoming(), code) &&
+        incoming().createdBy == request.auth.uid &&
+        incoming().usedCount == 0 &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+
+      allow update: if isSignedIn() &&
+        isValidInviteCodeId(code) &&
+        isValidInviteCode(incoming(), code) &&
+        incoming().code == existing().code &&
+        incoming().bandId == existing().bandId &&
+        incoming().role == existing().role &&
+        incoming().createdBy == existing().createdBy &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['active', 'maxUses', 'label', 'updatedAt'])) ||
+          (existing().active == true &&
+            existing().usedCount < existing().maxUses &&
+            incoming().usedCount == existing().usedCount + 1 &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['usedCount', 'updatedAt']) &&
+            existsAfter(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+            getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.inviteCodeUsed == code)
+        );
+
+      allow delete: if isAdmin() && isValidInviteCodeId(code);
+    }
+
+    match /songs/{songId} {
+      allow get: if isValidId(songId) && isMember();
+      allow list: if isSignedIn() && resource.data.bandId == 'main-band';
+
+      allow create: if canEditContent() &&
+        isValidId(songId) &&
+        isValidBandSong(incoming(), songId) &&
+        incoming().uploadedByUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+
+      allow update: if canEditContent() &&
+        isValidId(songId) &&
+        isValidBandSong(incoming(), songId) &&
+        incoming().id == existing().id &&
+        incoming().bandId == existing().bandId &&
+        incoming().uploadedByUid == existing().uploadedByUid &&
+        incoming().uploadedByName == existing().uploadedByName &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'title', 'artist', 'musicalKey', 'bpm', 'duration', 'genre',
+          'notes', 'fileName', 'fileSizeBytes', 'chunkCount', 'pageCount', 'updatedAt'
+        ]);
+
+      allow delete: if canEditContent() && isValidId(songId);
+
+      match /chunks/{chunkId} {
+        allow get: if isValidId(songId) && isValidId(chunkId) && isMember();
+        allow list: if isSignedIn() && resource.data.bandId == 'main-band';
+
+        allow create: if canEditContent() &&
+          isValidId(songId) &&
+          isValidId(chunkId) &&
+          isValidPdfChunk(incoming(), songId) &&
+          existsAfter(/databases/$(database)/documents/songs/$(songId));
+
+        allow update: if canEditContent() &&
+          isValidId(songId) &&
+          isValidId(chunkId) &&
+          isValidPdfChunk(incoming(), songId) &&
+          incoming().songId == existing().songId &&
+          incoming().bandId == existing().bandId &&
+          incoming().index == existing().index &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['dataBase64']);
+
+        allow delete: if canEditContent() && isValidId(songId) && isValidId(chunkId);
+      }
+    }
+
+    match /setlists/{setlistId} {
+      allow get: if isValidId(setlistId) && isMember();
+      allow list: if isSignedIn() && resource.data.bandId == 'main-band';
+
+      allow create: if canEditContent() &&
+        isValidId(setlistId) &&
+        isValidSetlist(incoming(), setlistId) &&
+        incoming().createdByUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+
+      allow update: if canEditContent() &&
+        isValidId(setlistId) &&
+        isValidSetlist(incoming(), setlistId) &&
+        incoming().id == existing().id &&
+        incoming().bandId == existing().bandId &&
+        incoming().createdByUid == existing().createdByUid &&
+        incoming().createdByName == existing().createdByName &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'eventTitle', 'eventDate', 'venue', 'notes', 'songIds', 'updatedAt'
+        ]);
+
+      allow delete: if canEditContent() && isValidId(setlistId);
+    }
+  }
+}

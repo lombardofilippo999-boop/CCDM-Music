@@ -1,0 +1,414 @@
+{
+  "entities": {
+    "BandMember": {
+      "title": "BandMember",
+      "description": "Public band roster profile for an authenticated member (no PII).",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Firebase Auth UID of the member."
+        },
+        "bandId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Band identifier (main-band)."
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80,
+          "description": "Member stage or display name."
+        },
+        "instrument": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 60,
+          "description": "Primary instrument or band role."
+        },
+        "role": {
+          "type": "string",
+          "enum": ["admin", "editor", "viewer"],
+          "description": "Access control role."
+        },
+        "inviteCodeUsed": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 32,
+          "pattern": "^[A-Z0-9_\\-]*$",
+          "description": "Mandatory invite code redeemed during registration, or OWNER_BOOTSTRAP for primary owner."
+        },
+        "joinedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when member joined."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last profile update."
+        }
+      },
+      "required": [
+        "uid",
+        "bandId",
+        "displayName",
+        "instrument",
+        "role",
+        "inviteCodeUsed",
+        "joinedAt",
+        "updatedAt"
+      ]
+    },
+    "MemberPrivateInfo": {
+      "title": "MemberPrivateInfo",
+      "description": "Isolated PII document storing member email address.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 160
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "email", "updatedAt"]
+    },
+    "AdminMarker": {
+      "title": "AdminMarker",
+      "description": "Authoritative admin role lookup document.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "grantedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "grantedBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "required": ["uid", "grantedAt", "grantedBy"]
+    },
+    "InviteCode": {
+      "title": "InviteCode",
+      "description": "Admin-generated invite code for onboarding editors, admins, or viewers.",
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 32,
+          "pattern": "^[A-Z0-9_\\-]+$"
+        },
+        "bandId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["admin", "editor", "viewer"]
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "maxUses": {
+          "type": "integer"
+        },
+        "usedCount": {
+          "type": "integer"
+        },
+        "active": {
+          "type": "boolean"
+        },
+        "createdBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "code",
+        "bandId",
+        "role",
+        "label",
+        "maxUses",
+        "usedCount",
+        "active",
+        "createdBy",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "BandSong": {
+      "title": "BandSong",
+      "description": "Song metadata and PDF manifest stored in the band library.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "bandId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "artist": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 100
+        },
+        "musicalKey": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 24
+        },
+        "bpm": {
+          "type": "integer"
+        },
+        "duration": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 16
+        },
+        "genre": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 40
+        },
+        "notes": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 1000
+        },
+        "fileName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "fileSizeBytes": {
+          "type": "integer"
+        },
+        "chunkCount": {
+          "type": "integer"
+        },
+        "pageCount": {
+          "type": "integer"
+        },
+        "uploadedByUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "uploadedByName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "bandId",
+        "title",
+        "artist",
+        "musicalKey",
+        "bpm",
+        "duration",
+        "genre",
+        "notes",
+        "fileName",
+        "fileSizeBytes",
+        "chunkCount",
+        "pageCount",
+        "uploadedByUid",
+        "uploadedByName",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "PdfChunk": {
+      "title": "PdfChunk",
+      "description": "Base64-encoded chunk of a song PDF document for offline sync.",
+      "type": "object",
+      "properties": {
+        "songId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "bandId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "index": {
+          "type": "integer"
+        },
+        "dataBase64": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 700000
+        }
+      },
+      "required": ["songId", "bandId", "index", "dataBase64"]
+    },
+    "EventSetlist": {
+      "title": "EventSetlist",
+      "description": "Ordered concert or rehearsal setlist for a specific event.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "bandId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "eventTitle": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "eventDate": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 32
+        },
+        "venue": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 120
+        },
+        "notes": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 1000
+        },
+        "songIds": {
+          "type": "array"
+        },
+        "createdByUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdByName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "bandId",
+        "eventTitle",
+        "eventDate",
+        "venue",
+        "notes",
+        "songIds",
+        "createdByUid",
+        "createdByName",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/BandMember" },
+      "description": "Band member roster profiles without PII."
+    },
+    "/users/{userId}/private/{docId}": {
+      "schema": { "$ref": "#/entities/MemberPrivateInfo" },
+      "description": "Private member PII (email) readable only by owner or admin."
+    },
+    "/admins/{userId}": {
+      "schema": { "$ref": "#/entities/AdminMarker" },
+      "description": "Authoritative admin markers for RBAC checks."
+    },
+    "/invites/{code}": {
+      "schema": { "$ref": "#/entities/InviteCode" },
+      "description": "Invite codes created by admin for registering editors, admins, or viewers."
+    },
+    "/songs/{songId}": {
+      "schema": { "$ref": "#/entities/BandSong" },
+      "description": "Band PDF song library metadata."
+    },
+    "/songs/{songId}/chunks/{chunkId}": {
+      "schema": { "$ref": "#/entities/PdfChunk" },
+      "description": "Base64 chunks of the song PDF file."
+    },
+    "/setlists/{setlistId}": {
+      "schema": { "$ref": "#/entities/EventSetlist" },
+      "description": "Event setlists referencing song IDs in performance order."
+    }
+  }
+}

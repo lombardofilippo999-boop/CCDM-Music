@@ -1,0 +1,8 @@
+{
+  "name": "CCDM Music",
+  "description": "Libreria spartiti PDF offline, scalette per eventi live e gestione ruoli per la tua band.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
