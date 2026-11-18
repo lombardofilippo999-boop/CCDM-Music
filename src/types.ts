@@ -2,9 +2,8 @@ export type UserRole = 'admin' | 'editor' | 'viewer';
 
 export const BAND_ID = 'main-band';
 export const OWNER_BOOTSTRAP_EMAIL = 'lombardofilippo999@gmail.com';
-export const HERO_IMAGE_PATH = '/src/assets/images/band_rehearsal_hero_1794987898780.jpg';
-export const APP_LOGO_PATH = '/assets/aistudio/CCDM_Music_logo_184dc5dd.jpg';
-
+export const HERO_IMAGE_PATH = `${import.meta.env.BASE_URL}assets/images/band_rehearsal_hero_1794987898780.jpg`;
+export const APP_LOGO_PATH = `${import.meta.env.BASE_URL}assets/aistudio/CCDM_Music_logo_184dc5dd.jpg`;
 export const VALIDATION_LIMITS = {
   idPattern: /^[a-zA-Z0-9_\-]+$/,
   inviteCodePattern: /^[A-Z0-9_\-]+$/,
