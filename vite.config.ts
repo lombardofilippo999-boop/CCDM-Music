@@ -7,11 +7,14 @@ import {VitePWA} from 'vite-plugin-pwa';
 
 export default defineConfig(() => {
   return {
+    base: '/CCDM-Music/',
     plugins: [
       react(),
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
+        scope: '/CCDM-Music/',
+base: '/CCDM-Music/',
         includeAssets: [
           'apple-touch-icon.png',
           'pwa-192x192.png',
@@ -20,30 +23,30 @@ export default defineConfig(() => {
           'assets/aistudio/CCDM_Music_logo_184dc5dd.jpg',
         ],
         manifest: {
-          id: '/',
+      id: '/CCDM-Music/',
           name: 'CCDM Music — Spartiti & Scalette',
           short_name: 'CCDM Music',
           description: 'Libreria spartiti PDF offline, scalette per eventi live e gestione ruoli della band.',
           theme_color: '#090B10',
           background_color: '#07031C',
           display: 'standalone',
-          start_url: '/',
-          scope: '/',
+          start_url: '/CCDM-Music/',
+scope: '/CCDM-Music/',
           icons: [
             {
-              src: '/pwa-192x192.png',
+              src: 'pwa-192x192.png',
               sizes: '192x192',
               type: 'image/png',
               purpose: 'any',
             },
             {
-              src: '/pwa-512x512.png',
+              src: 'pwa-512x512.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'any',
             },
             {
-              src: '/pwa-maskable-512x512.png',
+              src: 'pwa-maskable-512x512.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'maskable',
